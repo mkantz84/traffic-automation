@@ -14,8 +14,10 @@ ACCEL = float(os.environ["ACCEL"])
 TAU = float(os.environ["TAU"])
 STARTUP_DELAY = float(os.environ["STARTUP_DELAY"])
 MASTER_URL = os.environ["MASTER_URL"]  # e.g., http://master:8000/results
+JOB_ID = os.environ.get("JOB_ID")
+CONTAINER_ID = os.environ.get("CONTAINER_ID")
 
-logger.info(f"Starting simulation worker with parameters: accel={ACCEL}, tau={TAU}, startupDelay={STARTUP_DELAY}")
+logger.info(f"Starting simulation worker with parameters: accel={ACCEL}, tau={TAU}, startupDelay={STARTUP_DELAY}, job_id={JOB_ID}, container_id={CONTAINER_ID}")
 logger.info(f"Master URL: {MASTER_URL}")
 
 VTYPES_XML = "hw_model.vtypes.xml"
@@ -46,6 +48,10 @@ except Exception as e:
 sim_result["accel"] = ACCEL
 sim_result["tau"] = TAU
 sim_result["startupDelay"] = STARTUP_DELAY
+if JOB_ID:
+    sim_result["job_id"] = JOB_ID
+if CONTAINER_ID:
+    sim_result["container_id"] = CONTAINER_ID
 
 # Post the result to the master
 try:

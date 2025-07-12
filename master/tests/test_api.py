@@ -1,5 +1,5 @@
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from fastapi import status
 from app.main import app
 
@@ -7,13 +7,17 @@ import asyncio
 
 @pytest.mark.asyncio
 async def test_health_check():
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.get("/")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
 @pytest.mark.asyncio
-async def test_submit_permutations_valid():
+async def test_submit_permutations_valid(monkeypatch):
+    def fake_launch_worker(job_id, accel, tau, startup_delay, expected_I2, expected_I3): 
+        pass
+    monkeypatch.setattr("app.api.launch_worker", fake_launch_worker)
     payload = {
         "expected_I2": 50.0,
         "expected_I3": 20.0,
@@ -21,7 +25,8 @@ async def test_submit_permutations_valid():
         "tau": [1, 1.5],
         "startupDelay": [0, 0.5, 1]
     }
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.post("/submit_permutations", json=payload)
     assert response.status_code == 200
     data = response.json()
@@ -32,9 +37,29 @@ async def test_submit_permutations_valid():
 @pytest.mark.asyncio
 async def test_submit_permutations_invalid():
     payload = {"expected_I2": 50.0}  # Missing required fields
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.post("/submit_permutations", json=payload)
     assert response.status_code == 422  # Unprocessable Entity
+
+@pytest.mark.asyncio
+async def test_submit_permutations_starts_workers(monkeypatch):
+    calls = []
+    def fake_launch_worker(job_id, accel, tau, startup_delay, expected_I2, expected_I3):
+        calls.append((job_id, accel, tau, startup_delay, expected_I2, expected_I3))
+    monkeypatch.setattr("app.api.launch_worker", fake_launch_worker)
+
+    payload = {
+        "expected_I2": 50.0,
+        "expected_I3": 20.0,
+        "accel": [1, 2, 3],
+        "tau": [1, 1.5],
+        "startupDelay": [0, 0.5, 1]
+    }
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        await ac.post("/submit_permutations", json=payload)
+    assert len(calls) == 18  # 3*2*3
 
 @pytest.mark.asyncio
 async def test_post_results_valid():
@@ -43,9 +68,11 @@ async def test_post_results_valid():
         "accel": 1.0,
         "tau": 1.5,
         "startupDelay": 0.5,
-        "intersection_avg_delays": {"I2": 50.0, "I3": 20.0}
+        "intersection_avg_delays": {"I2": 50.0, "I3": 20.0},
+        "container_id": "dummy123"
     }
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.post("/results", json=payload)
     assert response.status_code == 200
     assert response.json()["status"] == "received"
@@ -53,13 +80,15 @@ async def test_post_results_valid():
 @pytest.mark.asyncio
 async def test_post_results_invalid():
     payload = {"job_id": "test-job"}  # Missing required fields
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.post("/results", json=payload)
     assert response.status_code == 422
 
 @pytest.mark.asyncio
 async def test_best_result_no_results():
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.get("/best_result")
     assert response.status_code == 404
     assert response.json()["detail"] == "No results available"
@@ -77,7 +106,8 @@ async def test_best_result_with_results(monkeypatch):
             "error": 0.0
         }
     }
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.get("/best_result")
     assert response.status_code == 200
     data = response.json()
