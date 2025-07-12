@@ -9,7 +9,7 @@ SPEED_THRESHOLD = 0.3  # m/s
 INTERSECTIONS_OF_INTEREST = ("I2", "I3")
 SIMULATION_DURATION = 2000
 SUMO_BINARY = "sumo"
-CONFIG_PATH = os.path.join(DIR_PATH, "hw_model.sumocfg")
+CONFIG_PATH = os.path.join(DIR_PATH, "hw_model.sumocfg.xml")
 SCENARIO_PATH = os.path.join(DIR_PATH, "scenario.json")
 
 
