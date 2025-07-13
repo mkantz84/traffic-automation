@@ -1,5 +1,6 @@
 import docker
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +29,15 @@ class DockerAccess:
         )
 
     @classmethod
-    def remove_container(cls, container_id):
+    def remove_container(cls, container_id, max_retries=3, delay=2):
         client = cls.get_client()
-        try:
-            container = client.containers.get(container_id)
-            container.remove(force=True)
-            logger.info(f"Removed container {container_id}")
-        except Exception as e:
-            logger.warning(f"Could not remove container {container_id}: {e}") 
+        for attempt in range(max_retries):
+            try:
+                container = client.containers.get(container_id)
+                container.remove(force=True)
+                logger.info(f"Removed container {container_id}")
+                return
+            except Exception as e:
+                logger.warning(f"Attempt {attempt+1}: Could not remove container {container_id}: {e}")
+                time.sleep(delay)
+        logger.error(f"Failed to remove container {container_id} after {max_retries} attempts. Manual cleanup may be required.") 

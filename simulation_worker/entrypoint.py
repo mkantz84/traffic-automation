@@ -8,6 +8,10 @@ import time
 from retry_utils import retry_with_backoff
 import sys
 
+# Ensure SUMO_HOME and PYTHONPATH are set for SUMO tools
+os.environ["SUMO_HOME"] = os.environ.get("SUMO_HOME", "/usr/share/sumo")
+os.environ["PYTHONPATH"] = os.environ.get("PYTHONPATH", "") + ":/usr/share/sumo/tools"
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
@@ -37,14 +41,14 @@ if result.stderr:
     logger.error("Simulation error output:")
     logger.error(result.stderr)
 
-# Parse only the last line of output as JSON
+# Parse simulation result from result.json file
 try:
-    output_lines = result.stdout.strip().splitlines()
-    json_line = output_lines[-1]  # Get the last line
-    sim_result = json.loads(json_line)
+    with open("result.json") as f:
+        sim_result = json.load(f)
     logger.info(f"Parsed simulation result: {sim_result}")
 except Exception as e:
-    logger.error(f"Failed to parse simulation output: {e}\nOutput was: {result.stdout}")
+    logger.error(f"Failed to read or parse result.json: {e}")
+    logger.error("Exiting with status code 1 due to simulation output parsing failure.")
     exit(1)
 
 # Add parameters to the result if not present
@@ -69,6 +73,7 @@ def post_result():
     return resp
 
 try:
-    retry_with_backoff(post_result)
+    retry_with_backoff(post_result, retry_exceptions=(RuntimeError,))
 except Exception:
+    logger.error("Failed to post result to master after retries. Exiting with status code 1.")
     exit(1) 

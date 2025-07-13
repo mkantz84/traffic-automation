@@ -6,6 +6,13 @@ from app.main import app
 import asyncio
 from app.dal import redis_dal
 
+# For tests: clear all job data
+def clear_job(job_id):
+    r = redis_dal.RedisClient.get_instance()
+    r.delete(f"job:{job_id}:expected_results")
+    r.delete(f"job:{job_id}:expected_delays")
+    r.delete(f"job:{job_id}:results")
+
 @pytest.mark.asyncio
 async def test_health_check():
     transport = ASGITransport(app=app)
@@ -88,7 +95,7 @@ async def test_post_results_invalid():
 
 @pytest.mark.asyncio
 async def test_best_result_no_results():
-    redis_dal.clear_job("test-job")
+    clear_job("test-job")
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.get("/best_result?job_id=test-job")
@@ -97,7 +104,7 @@ async def test_best_result_no_results():
 
 @pytest.mark.asyncio
 async def test_best_result_with_results(monkeypatch):
-    redis_dal.clear_job("test-job")
+    clear_job("test-job")
     redis_dal.set_expected_results("test-job", 1)
     redis_dal.add_result("test-job", {
         "accel": 1.0,
@@ -120,7 +127,7 @@ async def test_best_result_with_results(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_best_result_not_all_received():
-    redis_dal.clear_job("test-job")
+    clear_job("test-job")
     redis_dal.set_expected_results("test-job", 3)
     redis_dal.add_result("test-job", {
         "accel": 1.0,
@@ -137,7 +144,7 @@ async def test_best_result_not_all_received():
 
 @pytest.mark.asyncio
 async def test_job_status_not_found():
-    redis_dal.clear_job("unknown-job")
+    clear_job("unknown-job")
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.get("/job_status?job_id=unknown-job")
@@ -146,7 +153,7 @@ async def test_job_status_not_found():
 
 @pytest.mark.asyncio
 async def test_job_status_in_progress():
-    redis_dal.clear_job("job-1")
+    clear_job("job-1")
     redis_dal.set_expected_results("job-1", 3)
     redis_dal.add_result("job-1", {
         "accel": 1,
@@ -167,7 +174,7 @@ async def test_job_status_in_progress():
 
 @pytest.mark.asyncio
 async def test_job_status_complete():
-    redis_dal.clear_job("job-2")
+    clear_job("job-2")
     redis_dal.set_expected_results("job-2", 2)
     redis_dal.add_result("job-2", {
         "accel": 1,

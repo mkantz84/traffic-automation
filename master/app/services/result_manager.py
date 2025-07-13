@@ -14,6 +14,24 @@ def set_expected_delays(job_id, expected_I2, expected_I3):
 def set_expected_results(job_id, count):
     redis_dal.set_expected_results(job_id, count)
 
+def calculate_result_error(payload, result):
+    expected = redis_dal.get_expected_delays(payload.job_id)
+    assert isinstance(expected, dict), "Expected delays must be a dict"
+    if expected and "I2" in expected and "I3" in expected:
+        expected_I2 = float(expected["I2"])
+        expected_I3 = float(expected["I3"])
+        return calculate_error(result["intersection_avg_delays"], {"I2": expected_I2, "I3": expected_I3})
+    return None
+
+def update_best_result(job_id, result):
+    best = redis_dal.get_best_result(job_id)
+    if best is None or (result["error"] is not None and (best.get("error") is None or result["error"] < best["error"])):
+        redis_dal.set_best_result(job_id, result)
+        logger.info(f"Updated best_result for job {job_id}")
+
+def remove_worker_container(container_id):
+    DockerAccess.remove_container(container_id)
+
 def store_result(payload):
     result = {
         "accel": payload.accel,
@@ -21,33 +39,11 @@ def store_result(payload):
         "startupDelay": payload.startupDelay,
         "intersection_avg_delays": payload.intersection_avg_delays
     }
-    # Check for duplicate result (idempotency)
-    existing_results = redis_dal.get_results(payload.job_id)
-    for existing_result in existing_results:
-        if (
-            existing_result.get("accel") == payload.accel and
-            existing_result.get("tau") == payload.tau and
-            existing_result.get("startupDelay") == payload.startupDelay
-        ):
-            logger.warning(f"Duplicate result for job {payload.job_id} with accel={payload.accel}, tau={payload.tau}, startupDelay={payload.startupDelay} ignored.")
-            return  # Do not save duplicate
-    expected = redis_dal.get_expected_delays(payload.job_id)
-    assert isinstance(expected, dict), "Expected delays must be a dict"
-    if expected and "I2" in expected and "I3" in expected:
-        expected_I2 = float(expected["I2"])
-        expected_I3 = float(expected["I3"])
-        result["error"] = calculate_error(result["intersection_avg_delays"], {"I2": expected_I2, "I3": expected_I3})
-    else:
-        result["error"] = None
-    redis_dal.add_result(payload.job_id, result)
-    # Maintain best_result in Redis
-    best = redis_dal.get_best_result(payload.job_id)
-    if best is None or (result["error"] is not None and (best.get("error") is None or result["error"] < best["error"])):
-        redis_dal.set_best_result(payload.job_id, result)
-        logger.info(f"Updated best_result for job {payload.job_id}")
+    result["error"] = calculate_result_error(payload, result)
+    redis_dal.set_result(payload.job_id, payload.accel, payload.tau, payload.startupDelay, result)
     logger.info(f"Stored result in Redis for job {payload.job_id}")
-    container_id = payload.container_id
-    DockerAccess.remove_container(container_id)
+    update_best_result(payload.job_id, result)
+    remove_worker_container(payload.container_id)
 
 def get_best_result(job_id):
     best_result = redis_dal.get_best_result(job_id)

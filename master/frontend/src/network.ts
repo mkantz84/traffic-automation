@@ -1,20 +1,18 @@
-import type { SimulationFormData, JobStatus, BestResult } from "./types";
+import type { JobStatus, BestResult } from "./types";
 
 const API_BASE = "/api";
 
-export async function submitPermutations(
-  data: SimulationFormData
-): Promise<{ job_id: string; num_simulations: number }> {
+export async function submitPermutations(payload: {
+  expected_I2: number;
+  expected_I3: number;
+  accel: number[];
+  tau: number[];
+  startupDelay: number[];
+}): Promise<{ job_id: string; num_simulations: number }> {
   const resp = await fetch(`${API_BASE}/submit_permutations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      expected_I2: parseFloat(data.expected_I2),
-      expected_I3: parseFloat(data.expected_I3),
-      accel: data.accel.split(",").map(Number),
-      tau: data.tau.split(",").map(Number),
-      startupDelay: data.startupDelay.split(",").map(Number),
-    }),
+    body: JSON.stringify(payload),
   });
   if (!resp.ok) throw new Error("Failed to submit permutations");
   return await resp.json();

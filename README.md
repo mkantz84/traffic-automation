@@ -57,7 +57,13 @@ This project is fully containerized. You can build and run the entire stack (bac
 From the project root:
 
 ```bash
-docker compose up --build
+docker compose --profile build-only build
+```
+
+Then start the stack:
+
+```bash
+docker compose up
 ```
 
 - The backend (FastAPI + React) will be available at [http://localhost:8000](http://localhost:8000)

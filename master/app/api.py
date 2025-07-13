@@ -13,16 +13,18 @@ router = APIRouter()
 @router.post("/submit_permutations")
 def submit_permutations(request: SubmitPermutationsRequest):
     logger.info(f"Received /submit_permutations with job parameters: {request}")
-    permutations = list(itertools.product(request.accel, request.tau, request.startupDelay))
+    # Calculate the number of permutations without building the list
+    num_simulations = len(request.accel) * len(request.tau) * len(request.startupDelay)
     job_id = str(uuid.uuid4())
     # Store expected delays and count for this job
     result_manager.set_expected_delays(job_id, request.expected_I2, request.expected_I3)
-    result_manager.set_expected_results(job_id, len(permutations))
-    for accel, tau, startup_delay in permutations:
+    result_manager.set_expected_results(job_id, num_simulations)
+    # Use generator to avoid holding all permutations in memory
+    for accel, tau, startup_delay in itertools.product(request.accel, request.tau, request.startupDelay):
         launch_worker(job_id, accel, tau, startup_delay, request.expected_I2, request.expected_I3)
     return {
         "job_id": job_id,
-        "num_simulations": len(permutations)
+        "num_simulations": num_simulations
     }
 
 @router.post("/results")

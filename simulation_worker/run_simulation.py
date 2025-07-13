@@ -70,4 +70,5 @@ def run_simulation():
 
 if __name__ == "__main__":
     avg_delays = run_simulation()
-    print(json.dumps({"intersection_avg_delays": avg_delays}))
+    with open("result.json", "w") as f:
+        json.dump({"intersection_avg_delays": avg_delays}, f)

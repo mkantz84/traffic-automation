@@ -2,6 +2,9 @@ import redis
 import json
 import os
 
+def result_param_key(job_id, accel, tau, startup_delay):
+    return f"job:{job_id}:result:{accel}:{tau}:{startup_delay}"
+
 class RedisClient:
     _instance = None
 
@@ -48,30 +51,35 @@ def get_expected_delays(job_id):
     delays = r.hgetall(f"job:{job_id}:expected_delays")
     return ensure_type(delays, dict, "expected_delays")
 
-# Results (list of JSON strings)
+# Results (O(1) overwrite by param key)
 
-def add_result(job_id, result_dict):
+def set_result(job_id, accel, tau, startup_delay, result_dict):
     r = RedisClient.get_instance()
-    r.rpush(f"job:{job_id}:results", json.dumps(result_dict))
+    key = result_param_key(job_id, accel, tau, startup_delay)
+    r.set(key, json.dumps(result_dict))
+
 
 def get_results(job_id):
     r = RedisClient.get_instance()
-    results = r.lrange(f"job:{job_id}:results", 0, -1)
-    results_checked = ensure_type(results, list, "results")
-    return [json.loads(x) for x in results_checked]
+    pattern = f"job:{job_id}:result:*"
+    keys = r.keys(pattern)
+    keys_checked = ensure_type(keys, list, "result_keys")
+    results = []
+    for key in keys_checked:
+        data = r.get(key)
+        if data:
+            data_checked = ensure_type(data, (str, bytes), "result_data")
+            if isinstance(data_checked, bytes):
+                data_checked = data_checked.decode()
+            results.append(json.loads(data_checked))
+    return results
 
 def get_results_count(job_id):
     r = RedisClient.get_instance()
-    count = r.llen(f"job:{job_id}:results")
-    return ensure_type(count, int, "results_count")
-
-# For tests: clear all job data
-
-def clear_job(job_id):
-    r = RedisClient.get_instance()
-    r.delete(f"job:{job_id}:expected_results")
-    r.delete(f"job:{job_id}:expected_delays")
-    r.delete(f"job:{job_id}:results")
+    pattern = f"job:{job_id}:result:*"
+    keys = r.keys(pattern)
+    keys_checked = ensure_type(keys, list, "result_keys")
+    return len(keys_checked)
 
 def set_best_result(job_id, result_dict):
     r = RedisClient.get_instance()

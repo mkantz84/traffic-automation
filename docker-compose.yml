@@ -11,6 +11,7 @@ services:
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - MASTER_URL=http://host.docker.internal:8000/api/results
     depends_on:
       - redis
     volumes:

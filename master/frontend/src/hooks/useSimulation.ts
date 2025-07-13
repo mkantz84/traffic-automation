@@ -32,7 +32,15 @@ export function useSimulation() {
       reset();
       setLoading(true);
       try {
-        const { job_id, num_simulations } = await submitPermutations(form);
+        // Parse form data here
+        const payload = {
+          expected_I2: parseFloat(form.expected_I2),
+          expected_I3: parseFloat(form.expected_I3),
+          accel: form.accel.split(",").map(Number),
+          tau: form.tau.split(",").map(Number),
+          startupDelay: form.startupDelay.split(",").map(Number),
+        };
+        const { job_id, num_simulations } = await submitPermutations(payload);
         setJobId(job_id);
         setExpected(num_simulations);
         setReceived(0);
