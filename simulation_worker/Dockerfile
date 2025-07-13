@@ -22,10 +22,10 @@ RUN apt-get update && \
 WORKDIR /app
 
 # Copy simulation files
-COPY . /app
+COPY simulation_worker/. /app
 
 # Install Python dependencies
-COPY requirements.txt ./
+COPY simulation_worker/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Set entrypoint

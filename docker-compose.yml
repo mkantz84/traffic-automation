@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  master-backend:
+    build:
+      context: .
+      dockerfile: master/Dockerfile
+      target: backend-final
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  simulation-worker:
+    build:
+      context: .
+      dockerfile: simulation_worker/Dockerfile
+    image: simulation_worker:latest
+    profiles: ["build-only"]
+    # This service is just for building the image; actual workers are launched by the backend.
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"

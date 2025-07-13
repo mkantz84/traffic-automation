@@ -1,0 +1,17 @@
+# Project-level requirements for development and orchestration
+# Does NOT include backend or worker runtime dependencies
+
+# Linting and formatting
+black
+flake8
+isort
+
+# Testing
+pytest
+pytest-asyncio
+httpx
+
+# Docker orchestration (optional, for local dev helpers)
+docker-compose
+
+# Add any other project-wide dev tools below 

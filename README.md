@@ -46,6 +46,39 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 The API will be available at `http://localhost:8000`
 
+---
+
+## Docker & Docker Compose
+
+This project is fully containerized. You can build and run the entire stack (backend, frontend, Redis, and simulation worker image) using Docker Compose.
+
+### Build and Run
+
+From the project root:
+
+```bash
+docker compose up --build
+```
+
+- The backend (FastAPI + React) will be available at [http://localhost:8000](http://localhost:8000)
+- Redis will be available on port 6379
+- The simulation worker image will be built and is launched dynamically by the backend as jobs are submitted
+
+### Notes
+
+- The backend container requires access to the Docker socket to launch worker containers. This is handled by mounting `/var/run/docker.sock` into the backend container via Docker Compose.
+- The `simulation-worker` service in `docker-compose.yml` is only for building the image; actual workers are launched by the backend.
+- You can monitor logs with:
+  ```bash
+  docker compose logs -f
+  ```
+- To stop and remove all containers:
+  ```bash
+  docker compose down
+  ```
+
+---
+
 ### API Endpoints
 
 - `GET /` - Health check

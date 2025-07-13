@@ -11,7 +11,7 @@ def launch_worker(job_id, accel, tau, startup_delay, expected_I2, expected_I3):
         "ACCEL": str(accel),
         "TAU": str(tau),
         "STARTUP_DELAY": str(startup_delay),
-        "MASTER_URL": "http://host.docker.internal:8000/results",  # Adjust as needed
+        "MASTER_URL": "http://host.docker.internal:8000/api/results",  # Adjust as needed
         "JOB_ID": job_id
     }
     container_name = f"worker_{job_id}_{accel}_{tau}_{startup_delay}".replace('.', '_')
