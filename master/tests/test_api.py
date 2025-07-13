@@ -4,6 +4,7 @@ from fastapi import status
 from app.main import app
 
 import asyncio
+from app.dal import redis_dal
 
 @pytest.mark.asyncio
 async def test_health_check():
@@ -87,28 +88,27 @@ async def test_post_results_invalid():
 
 @pytest.mark.asyncio
 async def test_best_result_no_results():
+    redis_dal.clear_job("test-job")
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        response = await ac.get("/best_result")
+        response = await ac.get("/best_result?job_id=test-job")
     assert response.status_code == 404
-    assert response.json()["detail"] == "No results available"
+    assert response.json()["detail"] == "No results available for this job"
 
 @pytest.mark.asyncio
 async def test_best_result_with_results(monkeypatch):
-    # Simulate a result in the result manager
-    from app.services import result_manager
-    result_manager._results = {
-        "test-job": {
-            "accel": 1.0,
-            "tau": 1.5,
-            "startupDelay": 0.5,
-            "intersection_avg_delays": {"I2": 50.0, "I3": 20.0},
-            "error": 0.0
-        }
-    }
+    redis_dal.clear_job("test-job")
+    redis_dal.set_expected_results("test-job", 1)
+    redis_dal.add_result("test-job", {
+        "accel": 1.0,
+        "tau": 1.5,
+        "startupDelay": 0.5,
+        "intersection_avg_delays": {"I2": 50.0, "I3": 20.0},
+        "error": 0.0
+    })
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        response = await ac.get("/best_result")
+        response = await ac.get("/best_result?job_id=test-job")
     assert response.status_code == 200
     data = response.json()
     assert data["accel"] == 1.0
@@ -116,4 +116,79 @@ async def test_best_result_with_results(monkeypatch):
     assert data["startupDelay"] == 0.5
     assert "intersection_avg_delays" in data
     assert data["intersection_avg_delays"]["I2"] == 50.0
-    assert data["intersection_avg_delays"]["I3"] == 20.0 
+    assert data["intersection_avg_delays"]["I3"] == 20.0
+
+@pytest.mark.asyncio
+async def test_best_result_not_all_received():
+    redis_dal.clear_job("test-job")
+    redis_dal.set_expected_results("test-job", 3)
+    redis_dal.add_result("test-job", {
+        "accel": 1.0,
+        "tau": 1.5,
+        "startupDelay": 0.5,
+        "intersection_avg_delays": {"I2": 50.0, "I3": 20.0},
+        "error": 0.0
+    })
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get("/best_result?job_id=test-job")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Not all results received yet"
+
+@pytest.mark.asyncio
+async def test_job_status_not_found():
+    redis_dal.clear_job("unknown-job")
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get("/job_status?job_id=unknown-job")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Job not found"
+
+@pytest.mark.asyncio
+async def test_job_status_in_progress():
+    redis_dal.clear_job("job-1")
+    redis_dal.set_expected_results("job-1", 3)
+    redis_dal.add_result("job-1", {
+        "accel": 1,
+        "tau": 1,
+        "startupDelay": 0,
+        "intersection_avg_delays": {"I2": 10, "I3": 5},
+        "error": 1.0
+    })
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get("/job_status?job_id=job-1")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["job_id"] == "job-1"
+    assert data["received_results"] == 1
+    assert data["expected_results"] == 3
+    assert data["complete"] is False
+
+@pytest.mark.asyncio
+async def test_job_status_complete():
+    redis_dal.clear_job("job-2")
+    redis_dal.set_expected_results("job-2", 2)
+    redis_dal.add_result("job-2", {
+        "accel": 1,
+        "tau": 1,
+        "startupDelay": 0,
+        "intersection_avg_delays": {"I2": 10, "I3": 5},
+        "error": 1.0
+    })
+    redis_dal.add_result("job-2", {
+        "accel": 2,
+        "tau": 1,
+        "startupDelay": 0,
+        "intersection_avg_delays": {"I2": 12, "I3": 6},
+        "error": 2.0
+    })
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get("/job_status?job_id=job-2")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["job_id"] == "job-2"
+    assert data["received_results"] == 2
+    assert data["expected_results"] == 2
+    assert data["complete"] is True 

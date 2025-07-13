@@ -4,6 +4,8 @@ import requests
 import json
 import logging
 from xml_utils import update_vtypes_xml
+import time
+from retry_utils import retry_with_backoff
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
@@ -53,11 +55,15 @@ if JOB_ID:
 if CONTAINER_ID:
     sim_result["container_id"] = CONTAINER_ID
 
-# Post the result to the master
-try:
+# Post the result to the master with retry, exponential backoff, and circuit breaker
+
+def post_result():
     logger.info(f"Posting result to master at {MASTER_URL} ...")
-    resp = requests.post(MASTER_URL, json=sim_result)
+    resp = requests.post(MASTER_URL, json=sim_result, timeout=10)
     logger.info(f"Posted result to master: {resp.status_code} {resp.text}")
-except Exception as e:
-    logger.error(f"Failed to post result to master: {e}")
+    return resp
+
+try:
+    retry_with_backoff(post_result)
+except Exception:
     exit(1) 
