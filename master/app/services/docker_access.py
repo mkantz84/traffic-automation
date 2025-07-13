@@ -19,7 +19,7 @@ class DockerAccess:
         if container_name:
             env_vars = dict(env_vars)
             env_vars["CONTAINER_ID"] = container_name
-        logger.info(f"Running container: {image} with env: {env_vars} and name: {container_name}")
+        logger.debug(f"Running container: {image} with env: {env_vars} and name: {container_name}")
         return client.containers.run(
             image,
             detach=True,
@@ -35,7 +35,7 @@ class DockerAccess:
             try:
                 container = client.containers.get(container_id)
                 container.remove(force=True)
-                logger.info(f"Removed container {container_id}")
+                logger.debug(f"Removed container {container_id}")
                 return
             except Exception as e:
                 logger.warning(f"Attempt {attempt+1}: Could not remove container {container_id}: {e}")

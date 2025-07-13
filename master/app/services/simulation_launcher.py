@@ -17,7 +17,7 @@ def launch_worker(job_id, accel, tau, startup_delay, expected_I2, expected_I3):
         "JOB_ID": job_id
     }
     container_name = f"worker_{job_id}_{accel}_{tau}_{startup_delay}".replace('.', '_')
-    logger.info(f"Launching worker with env: {env_vars} and container_name: {container_name}")
+    logger.debug(f"Launching worker with env: {env_vars} and container_name: {container_name}")
     DockerAccess.run_container(
         "simulation_worker:latest",
         env_vars,

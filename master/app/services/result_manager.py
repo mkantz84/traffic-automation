@@ -27,7 +27,7 @@ def update_best_result(job_id, result):
     best = redis_dal.get_best_result(job_id)
     if best is None or (result["error"] is not None and (best.get("error") is None or result["error"] < best["error"])):
         redis_dal.set_best_result(job_id, result)
-        logger.info(f"Updated best_result for job {job_id}")
+        logger.debug(f"Updated best_result for job {job_id}")
 
 def remove_worker_container(container_id):
     DockerAccess.remove_container(container_id)
@@ -41,7 +41,7 @@ def store_result(payload):
     }
     result["error"] = calculate_result_error(payload, result)
     redis_dal.set_result(payload.job_id, payload.accel, payload.tau, payload.startupDelay, result)
-    logger.info(f"Stored result in Redis for job {payload.job_id}")
+    logger.debug(f"Stored result in Redis for job {payload.job_id}")
     update_best_result(payload.job_id, result)
     remove_worker_container(payload.container_id)
 
