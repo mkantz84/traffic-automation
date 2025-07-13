@@ -1,0 +1,9 @@
+.simulation-progress {
+  margin: 1.5em 0 0.5em 0;
+  font-size: 1.15em;
+  text-align: center;
+}
+.simulation-progress__loader {
+  color: #6366f1;
+  font-weight: bold;
+} 

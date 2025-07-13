@@ -1,0 +1,14 @@
+.best-result {
+  margin-top: 2.5em;
+  text-align: center;
+}
+.best-result__json {
+  background: #f1f5f9;
+  padding: 1.2em;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', 'Fira Mono', 'monospace';
+  font-size: 1.05em;
+  display: inline-block;
+  text-align: left;
+  margin-top: 0.5em;
+} 

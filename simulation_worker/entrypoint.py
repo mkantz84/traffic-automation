@@ -6,6 +6,7 @@ import logging
 from xml_utils import update_vtypes_xml
 import time
 from retry_utils import retry_with_backoff
+import sys
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
@@ -55,12 +56,16 @@ if JOB_ID:
 if CONTAINER_ID:
     sim_result["container_id"] = CONTAINER_ID
 
-# Post the result to the master with retry, exponential backoff, and circuit breaker
-
+# Post the result to the master with retry (only for 5** error codes), exponential backoff, and circuit breaker
 def post_result():
     logger.info(f"Posting result to master at {MASTER_URL} ...")
     resp = requests.post(MASTER_URL, json=sim_result, timeout=10)
     logger.info(f"Posted result to master: {resp.status_code} {resp.text}")
+    if 400 <= resp.status_code < 500:
+        logger.error(f"Client error {resp.status_code}: {resp.text}. Exiting container.")
+        sys.exit(1)
+    if 500 <= resp.status_code < 600:
+        raise RuntimeError(f"Server error {resp.status_code}: {resp.text}")
     return resp
 
 try:
